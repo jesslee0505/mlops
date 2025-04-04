@@ -1,0 +1,11 @@
+stages:
+  prepare:
+    cmd: python src/preprocessing.py
+    deps:
+      - data/adult.data
+      - data/adult.test
+      - src/preprocessing.py
+    outs:
+      - data/processed_train_data.csv
+      - data/processed_test_data.csv
+      - data/pipeline.pkl
