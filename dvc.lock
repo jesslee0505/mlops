@@ -1,0 +1,30 @@
+schema: '2.0'
+stages:
+  prepare:
+    cmd: python src/preprocessing.py
+    deps:
+    - path: data/adult.data
+      hash: md5
+      md5: 5d7c39d7b8804f071cdd1f2a7c460872
+      size: 3974305
+    - path: data/adult.test
+      hash: md5
+      md5: 366c746021dc50ad9d933d2817612fc9
+      size: 2003132
+    - path: src/preprocessing.py
+      hash: md5
+      md5: 001ae61aeec00578f55bb1c7a0a43a92
+      size: 1749
+    outs:
+    - path: data/pipeline.pkl
+      hash: md5
+      md5: aad49aa3518bb16842bd4b3cd649c96e
+      size: 7286
+    - path: data/processed_test_data.csv
+      hash: md5
+      md5: 93dbf64ea76bac59dd9e5ec36afdb8d0
+      size: 2576506
+    - path: data/processed_train_data.csv
+      hash: md5
+      md5: 0be350e6697e87872b93592edfe4f721
+      size: 5154498
