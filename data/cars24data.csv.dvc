@@ -1,0 +1,5 @@
+outs:
+- md5: 43543625fbaee061f56ff71eb3d0d364
+  size: 113344
+  hash: md5
+  path: cars24data.csv
