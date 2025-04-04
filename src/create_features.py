@@ -1,73 +1,108 @@
 import pandas as pd
 import numpy as np 
 import pickle
+import yaml
+import os
 from sklearn.preprocessing import StandardScaler, LabelEncoder, OneHotEncoder
 from sklearn.compose import ColumnTransformer, make_column_selector
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.feature_selection import SelectPercentile, chi2
 
-col_names = ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 
-'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country', 'y']
+def load_data(train_path, test_path):
+    # Load data
+    train_data = pd.read_csv(train_path)
+    test_data = pd.read_csv(test_path)
+    return train_data, test_data
 
-# Load data
-train_data = pd.read_csv('data/adult.data', names=col_names)
-test_data = pd.read_csv('data/adult.test', names=col_names)
+def process_data(train_data, test_data, chi2percentile):
+    # Assuming 'Price' is our target variable
+    train_y, test_y = train_data['Price'], test_data['Price']
 
-# Encode and impute values for target variable
-train_y, test_y = train_data['y'], test_data['y']
-train_y = train_y.map( {' >50K':1, ' >50K.':1, ' <=50K.':0, ' <=50K':0} )
-test_y = test_y.map( {' >50K':1, ' >50K.':1, ' <=50K.':0, ' <=50K':0} )
+    # Reshape for pipeline
+    train_y = train_y.values.reshape((-1,1))
+    test_y = test_y.values.reshape((-1,1))
 
-train_y = train_y.values.reshape((-1,1))
-test_y = test_y.values.reshape((-1,1))
+    # Drop target variable 
+    train_data = train_data.drop(columns=['Price'])
+    test_data = test_data.drop(columns=['Price'])
 
-impy = SimpleImputer(strategy="most_frequent")
-impy.fit(train_y)
-train_y = impy.transform(train_y)
-test_y = impy.transform(test_y)
+    # Create pipeline for imputing and scaling numeric variables
+    # one-hot encoding categorical variables, and select features based on chi-squared value
+    numeric_transformer = Pipeline(
+        steps=[("imputer", SimpleImputer(strategy="median")), ("scaler", StandardScaler())]
+    )
 
-# Drop target variable 
-train_data = train_data.drop(columns = ['y'])
-test_data = test_data.drop(columns = ['y'])
+    categorical_transformer = Pipeline(
+        steps=[
+            ("imputer", SimpleImputer(strategy="most_frequent")),
+            ("encoder", OneHotEncoder(handle_unknown="ignore")),
+            ("selector", SelectPercentile(chi2, percentile=chi2percentile)),
+        ]
+    )
+    
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("num", numeric_transformer, make_column_selector(dtype_include=np.number)),
+            ("cat", categorical_transformer, make_column_selector(dtype_exclude=np.number)),
+        ],
+        remainder='passthrough'
+    )
 
-# Create pipeline for imputing and scaling numeric variables
-# one-hot encoding categorical variables, and select features based on chi-squared value
-numeric_transformer = Pipeline(
-    steps=[("imputer", SimpleImputer(strategy="median")), ("scaler", StandardScaler())]
-)
+    clf = Pipeline(
+        steps=[("preprocessor", preprocessor)]
+    )
 
-categorical_transformer = Pipeline(
-    steps=[
-        ("encoder", OneHotEncoder(handle_unknown="ignore")),
-        ("selector", SelectPercentile(chi2, percentile=50)),
-    ]
-)
-preprocessor = ColumnTransformer(
-    transformers=[
-        ("num", numeric_transformer, make_column_selector(dtype_include = ['int', 'float'])),
-        ("cat", categorical_transformer, make_column_selector(dtype_exclude = ['int', 'float'])),
-    ]
-)
+    # Create new train and test data using the pipeline
+    clf.fit(train_data, train_y.ravel())
+    train_new = clf.transform(train_data)
+    test_new = clf.transform(test_data)
 
-clf = Pipeline(
-    steps=[("preprocessor", preprocessor)]
-)
+    # Transform to dataframe
+    if hasattr(train_new, "toarray"):
+        train_new = pd.DataFrame(train_new.toarray())
+        test_new = pd.DataFrame(test_new.toarray())
+    else:
+        train_new = pd.DataFrame(train_new)
+        test_new = pd.DataFrame(test_new)
+        
+    # Add target back
+    train_new['Price'] = train_y
+    test_new['Price'] = test_y
+    
+    return train_new, test_new, clf
 
-# Create new train and test data using the pipeline
-clf.fit(train_data, train_y)
-train_new = clf.transform(train_data)
-test_new = clf.transform(test_data)
+def save_data(train_new, test_new, train_output, test_output, clf, clf_output):
+    # Create output directories if they don't exist
+    os.makedirs(os.path.dirname(train_output), exist_ok=True)
+    os.makedirs(os.path.dirname(test_output), exist_ok=True)
+    os.makedirs(os.path.dirname(clf_output), exist_ok=True)
+    
+    # Save processed data
+    train_new.to_csv(train_output, index=False)
+    test_new.to_csv(test_output, index=False)
+    
+    # Save pipeline
+    with open(clf_output, 'wb') as f:
+        pickle.dump(clf, f)
+    
+    print(f"Feature creation complete. Files saved to {train_output}, {test_output}, and {clf_output}")
 
-# Transform to dataframe and save as a csv
-train_new = pd.DataFrame.sparse.from_spmatrix(train_new)
-test_new = pd.DataFrame.sparse.from_spmatrix(test_new)
-train_new['y'] = train_y
-test_new['y'] = test_y
+if __name__=="__main__":
+    # Load parameters
+    with open('params.yaml', 'r') as f:
+        params = yaml.safe_load(f)
+    
+    features_params = params["features"]
+    create_features_params = params["create_features"]
+    
+    chi2percentile = features_params["chi2percentile"]
+    train_path = create_features_params["input_train_data"]
+    test_path = create_features_params["input_test_data"]
+    train_output = create_features_params["output_train_data"]
+    test_output = create_features_params["output_test_data"]
+    pipeline_output = create_features_params["pipeline_output"]
 
-train_new.to_csv('data/processed_train_data.csv')
-test_new.to_csv('data/processed_test_data.csv')
-
-# Save pipeline
-with open('data/pipeline.pkl','wb') as f:
-    pickle.dump(clf,f)
+    train_data, test_data = load_data(train_path, test_path)
+    train_new, test_new, clf = process_data(train_data, test_data, chi2percentile)
+    save_data(train_new, test_new, train_output, test_output, clf, pipeline_output)
