@@ -4,3 +4,6 @@
 /processed_train_data.csv
 /processed_test_data.csv
 /pipeline.pkl
+/cars24data.csv
+/features_train_data.csv
+/features_test_data.csv

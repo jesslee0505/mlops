@@ -28,3 +28,51 @@ stages:
       hash: md5
       md5: adf63b6ce20f7ee74f63d5dabb325226
       size: 10829967
+  preprocess:
+    cmd: python src/preprocessing.py
+    deps:
+    - path: data/cars24data.csv
+      hash: md5
+      md5: 43543625fbaee061f56ff71eb3d0d364
+      size: 113344
+    - path: src/preprocessing.py
+      hash: md5
+      md5: 1ccdd11efd2a257f8a3bf73ee58eb308
+      size: 2268
+    outs:
+    - path: data/processed_test_data.csv
+      hash: md5
+      md5: 449ebbf63195499454603633387ac3cc
+      size: 12019
+    - path: data/processed_train_data.csv
+      hash: md5
+      md5: 1bdd5733f11b052d3f6ef0469ba95f94
+      size: 47675
+  create_features:
+    cmd: python src/create_features.py
+    deps:
+    - path: data/processed_test_data.csv
+      hash: md5
+      md5: 449ebbf63195499454603633387ac3cc
+      size: 12019
+    - path: data/processed_train_data.csv
+      hash: md5
+      md5: 1bdd5733f11b052d3f6ef0469ba95f94
+      size: 47675
+    - path: src/create_features.py
+      hash: md5
+      md5: 91d3c6a3da7d1b93534d93cdea47be33
+      size: 3933
+    outs:
+    - path: data/features_test_data.csv
+      hash: md5
+      md5: da20235b1474c0417785bbafceaf5629
+      size: 58479
+    - path: data/features_train_data.csv
+      hash: md5
+      md5: 9f67fa8ad6068b5edadb96fd74ac29f6
+      size: 233763
+    - path: data/pipeline.pkl
+      hash: md5
+      md5: f044377f395c495cbd6eca78b3bad83e
+      size: 2671
